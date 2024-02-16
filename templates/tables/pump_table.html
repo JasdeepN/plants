@@ -1,0 +1,37 @@
+{% extends "auto.html" %}
+
+
+{% block table %}
+{% if (data is defined) and data %}
+
+<table id="data" class="table table-striped">
+    <thead>
+    <tr>
+        <th>Row ID</th>
+        <th>Pump ID</th>
+        <th>Date</th>
+        <th>Auto/Manual</th>
+
+    </tr>
+    </thead>
+    <tbody>
+
+        {% for row in data %}
+            <tr>
+                <td>{{row[0]}}</td>
+                <td>{{row[1]}}</td>
+                <td>{{row[2]}}</td>
+
+                {% if row[3] == 0 %}
+                    <td>Manual</td>
+                {% else %}
+                    <td>Automatic</td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    
+    {% endif %}
+
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "main.html" %}
+
+
+{% block content %}
+<h1> Pump Status' </h1>
+<div class="content pump">
+    <span class="icons horizontal">
+    {% for item in data %}
+    {% if item == "ON" %}
+        <div class="status-bar">
+            <h2 class="title"> Pump {{loop.index}}</h2>
+           <div class="icon">  <img src="{{ url_for('static', filename='imgs/on.png') }}" /> </div>
+        </div>
+    {% else %}
+        <div class="status-bar">
+            <h2 class="title"> Pump {{loop.index}} </h2>
+            <div class="icon"> <img src="{{ url_for('static', filename='imgs/off.png') }}" /></div>
+        </div>
+    {% endif %}
+
+    {% endfor %}
+    </div>
+</div>
+<h1> Pump Controller </h1>
+    <div class="content">
+        <span class="horizontal">
+           
+            <div class="pump-controller"> 
+                <h2 class="title"> Pump 1 </h2>
+                <a href="/water1"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water1/ON"><button class="btn btn-primary">Turn ON</button></a>
+                <a href="/water1/OFF"><button class="btn btn-primary">Turn OFF</button></a>
+            </div>
+           
+            <div class="pump-controller"> 
+                <h2 class="title"> Pump 2 </h2>
+                <a href="/water2"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water2/ON"><button class="btn btn-primary">Turn ON</button></a>
+                <a href="/water2/OFF"><button class="btn btn-primary">Turn OFF</button></a>
+            </div>
+           
+            <div class="pump-controller"> 
+                <h2 class="title"> Pump 3 </h2>
+                <a href="/water3"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water3/ON"><button class="btn btn-primary">Turn ON</button></a>
+                <a href="/water3/OFF"><button class="btn btn-primary">Turn OFF</button></a>
+            </div>
+           
+            <div class="pump-controller disabled"> 
+                <h2 class="title"> Pump 4 </h2>
+                <a href="/water4"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water4/ON"><button class="btn btn-primary">Turn ON</button></a>
+                <a href="/water4/OFF"><button class="btn btn-primary">Turn OFF</button></a>
+            </div>
+
+        </span>
+    </div>
+{% endblock %}
+
+{% block scripts %} 
+    {{super()}}
+    
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "bootstrap/base.html"  %}
+
+{% block html_attribs %} lang="en"  {% endblock %}
+
+
+{%- block metas %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+{%- endblock metas %}
+
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/main.css') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap5.css">
+{% endblock %}
+
+{% block navbar %}
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">{{title}}</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item active">
+          <a class="nav-link" href="{{ url_for('home') }}">Home <span class="sr-only"></span></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"  href="{{ url_for('auto') }}">Automation</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"  href="{{ url_for('soil') }}"> Soil Status</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"  href="{{ url_for('pump') }}"> Pump Control</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"  href="{{ url_for('processes') }}"> Processes</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"  href="{{ url_for('logs') }}"> logs</a>
+        </li>
+        <li class="nav-item"> 
+          <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">{{time}}</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+{% endblock %}
+   
+{% block scripts %}
+  {{super()}}
+  <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.js"></script>
+  <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap5.js"></script>
+
+{% endblock %}
+
+

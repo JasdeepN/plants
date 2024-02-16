@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+{{ text }}
+
+
+{% endblock %}
+
+
+{% block scripts %}
+{{super()}}
+  <!-- <script type="text/javascript" charset="utf-8">
+    var socket = io();
+    socket.emit("my event", {data:"from about"})
+  </script> -->
+{% endblock %}

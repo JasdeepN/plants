@@ -1,0 +1,63 @@
+{% extends "auto.html" %}
+
+
+{% block table %}
+
+  <table id="data" class="table table-striped">
+    <thead>
+    <tr>
+        <th>Row ID</th>
+        <th>Date</th>
+        <th>Temperature</th>
+        <th>Humidity</th>
+        <th>Preassure(kPa)</th>
+        <th>Gas Resistance(Ohms)</th>
+        <th>AQI</th>
+        <th>Soil 1</th>
+        <th>Soil 2</th>
+        <th>Soil 3</th>
+        <th>Soil 4</th>
+        <th>eCO2</th>
+    </tr>
+    </thead>
+    <tbody>
+
+       
+        </tbody>
+    </table>
+
+
+{% endblock %}
+
+{% block scripts %}
+{{super()}}
+  <script>
+    $(document).ready(function () {
+      $('#data').DataTable({
+        bProcessing: true,
+        bServerSide: false,
+        sPaginationType: "full_numbers",
+        "pageLength": 10,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        bjQueryUI: true,
+        sAjaxSource: "/api/data/sensor",
+        columns: [
+            { data: 'Row ID' },
+            { data: 'Date' },
+            { data: 'Temp' },
+            { data: 'Humidity' },
+            { data: 'Pressure(kPa)' },
+            { data: 'Gas Resistance(Ohms)' },
+            { data: 'AQI' },
+            { data: 'Soil 1', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
+            { data: 'Soil 2', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
+            { data: 'Soil 3', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
+            { data: 'Soil 4', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
+            { data: 'eCO2' }
+        ],
+     
+        order: [[0, 'desc']]
+      });
+    });
+  </script>
+{% endblock %}

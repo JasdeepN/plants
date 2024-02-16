@@ -1,0 +1,31 @@
+{% extends "main.html" %}
+
+
+
+{% block content %}
+<h1> this page show current soil status and pump status</h1>
+
+
+<div class="content">
+    {{text}}
+    
+    {% if (status is defined) and status %}
+
+    <div class="status">
+       <h3>Environmental Recorder - {{status}}</h3>
+    </div>
+
+    {% endif %}
+    <div class="table-content">
+    {% block table %}
+
+    {% endblock %}
+    </div>
+    <a href="/auto/env/read"><button>Run Burn in (1 min) and read</button></a>
+    <a href="/auto/env/test"><button>test env insert</button></a>
+    <a href="/auto/env/dump/db"><button>dump db</button></a>
+    <a href="/auto/env/dump/pump"><button>dump pump db</button></a>
+
+
+</div>
+{% endblock %}

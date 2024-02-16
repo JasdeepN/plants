@@ -1,0 +1,12 @@
+{% extends "main.html" %}
+
+
+{% block content %}
+<h1> this page show current soil status</h1>
+
+<div class="content">
+    {% for item in data %}
+        <h2> status {{loop.index}}: {{item}} </h2>
+    {% endfor %}
+</div>
+{% endblock %}

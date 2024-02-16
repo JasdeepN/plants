@@ -1,0 +1,11 @@
+{% extends "main.html" %}
+
+{% block content %}
+
+{% if (data is defined) and data %}
+{% for item in data %}
+    <h2> {{loop.index}} {{item}} </h2>
+{% endfor %}
+{% endif %}
+
+{% endblock %}
