@@ -1,4 +1,4 @@
-{% extends "auto.html" %}
+{% extends "environment.html" %}
 
 
 {% block table %}
@@ -21,9 +21,8 @@
     </tr>
     </thead>
     <tbody>
-
-       
-        </tbody>
+         <!-- datatables will fill in data  -->
+    </tbody>
     </table>
 
 
@@ -49,10 +48,10 @@
             { data: 'Pressure(kPa)' },
             { data: 'Gas Resistance(Ohms)' },
             { data: 'AQI' },
-            { data: 'Soil 1', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
-            { data: 'Soil 2', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
-            { data: 'Soil 3', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
-            { data: 'Soil 4', render: function (data, type, row) {return data === 0 ? "wet" : "dry";} },
+            { data: 'Soil 1' },
+            { data: 'Soil 2' },
+            { data: 'Soil 3' },
+            { data: 'Soil 4' },
             { data: 'eCO2' }
         ],
      

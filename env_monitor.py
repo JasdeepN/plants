@@ -240,6 +240,7 @@ if __name__ == "__main__":
     print('starting from env')
     try:
        while 1:
+            burnIn(5, True)
             poll()      
     except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
         pass

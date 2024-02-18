@@ -85,4 +85,4 @@ SERVERSIDE_TABLE_COLUMNS = [
         "searchable": False
     }
 
-]
+], 

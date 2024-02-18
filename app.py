@@ -14,25 +14,21 @@ app = Flask(__name__)
 # mqtt = Mqtt(app)
 # socketio = SocketIO(app)
 
+
+# DECLARE AND INIT #
+
 bootstrap = Bootstrap4(app) 
 water.init()
-# # 
-# id INT NOT NULL AUTO_INCREMENT,
-#             time DATETIME NOT NULL,
-#             temp DOUBLE NULL,
-#             humidity DOUBLE NULL,
-#             pressure DOUBLE NULL,
-#             gas_resistance DOUBLE NULL,
-#             aq_calculated DOUBLE NULL,
-#             soil_1 BOOLEAN NULL,
-#             soil_2 BOOLEAN NULL,
-#             soil_3 BOOLEAN NULL,
-#             soil_4 BOOLEAN NULL,
-#             PRIMARY KEY (id)
-
 
 active_apps = [None, None]
-   
+programs = [
+    "auto_water.py",
+    "auto_env.py"
+]
+
+######
+
+### LOCAL FUNCTION DEFINITIONS ### 
 def toDict(self):
     # print ('got', len(self))
     return {
@@ -50,7 +46,17 @@ def toDict(self):
         'eCO2' : self[11]
     }
 
+def toPumpDict(self):
+    # print ('pump got', len(self))
+    return {
+        'Row ID' : self[0],
+        'Pump ID' : self[1],
+        'Date' : self[2],
+        'Method' : self[3],
+    }
 
+
+## TEMPLATES ##
 def template(title = "", text = ""):
     now = datetime.datetime.now()
     timeString = now.strftime("%H:%M:%S")
@@ -73,14 +79,22 @@ def data_template(title = "", data = [], text = "", status=None):
         }
     return templateData
 
-def getSoilStatus():
-    status_arr = []
-    status_arr.append(water.get_soil_status(0));
-    status_arr.append(water.get_soil_status(1));
-    status_arr.append(water.get_soil_status(2));
-    status_arr.append(water.get_soil_status(3));
+def table_template(title = "", data = [], text = "", table= None, status=None):
+    now = datetime.datetime.now()
+    timeString = now.strftime("%H:%M:%S")
+    templateData = {
+        'title' : title,
+        'time' : timeString,
+        'data' : data,
+        'text' : text,
+        'status': status,
+        'table': table,
+        }
+    return templateData
 
-    return status_arr
+## GET DATA ##
+def getSoilStatus():
+    return water.get_soil_status()
 
 def getPumpStatus():
     pump_arr = []
@@ -88,24 +102,39 @@ def getPumpStatus():
     pump_arr.append("OFF" if water.getPinState(1) == 0 else "ON");
     pump_arr.append("OFF" if water.getPinState(2) == 0 else "ON");
     pump_arr.append("OFF" if water.getPinState(3) == 0 else "ON");
-
-
-    
     return pump_arr
 
+def getRunning():
+    global active_apps
+    active_apps = []
+    for target in programs:
+        active_apps.append(verification(target))
+    return active_apps
+            
+    
+def verification(prog):
+    for pid in psutil.pids():
+        p = psutil.Process(pid)
+        if p.name() == "python" and len(p.cmdline()) > 1 and prog in p.cmdline()[1]:
+            return True
+    return False
+
+
 def checkRunning(program=None):
+    global programs
+    global active_apps
+    getRunning()
     print('checking for', program)
-    programs = [
-        "auto_water.py",
-        "auto_env.py"
-    ]
+
     if program == None: 
         out=[]    
         for target in active_apps:
-            if target is not None:
-                out.append(programs[target]+" Process Found.")
-            else:
+            if target is None:
+                out.append(programs[target]+" Process Not Started.")
+            elif target is False:
                 out.append(programs[target] + " not found")
+            else:
+                out.append(programs[target] +'Running')
         
         return out
     else:
@@ -116,38 +145,6 @@ def checkRunning(program=None):
         except:
             pass
         return retVal
-  
-@app.route("/auto/env/test")
-def getEnvironmental():
-    env_arr = water.getEnvData(False);
-    templateData = data_template(title = "Auto", data = env_arr)
-    return render_template('auto.html', **templateData)
-
-@app.route("/auto/env/dump/db")
-def getDB():
-    templateData = data_template(title = "Auto", status=checkRunning(program=1))
-    return render_template('tables/sensor_table.html', **templateData)
-
-@app.route('/api/data/sensor')
-def data():
-    arr = db.get_all_rows(table="SENSOR_READINGS", limit="2000", order="time DESC")
-    # print([toDict(row) for row in arr] )
-    return {'data': [toDict(row) for row in arr] }
-
-@app.route("/auto/env/dump/pump")
-def getRow():
-    # arr = db.getRows(3, "PUMPS", where="pump_id = 0", modifier="latest")
-    arr = db.get_all_rows(table="PUMPS")
-    # print('db ->', arr)
-    templateData = data_template(title = "Auto", data = arr)
-    return render_template('tables/pump_table.html', **templateData)
-
-@app.route("/auto/env/pump_test")
-def getpumpDB():
-    arr = water.pumpInsert()
-    templateData = data_template(title = "Auto", data = arr)
-    return render_template('auto.html', **templateData)
-
 
 def getAllData():
     _data = []
@@ -156,12 +153,12 @@ def getAllData():
     # _data.append(getEnvironmentalStatus());
     return _data
 
+
+## ROUTES ##
 @app.route("/")
 def home():
     templateData = template(title = "Home")
     return render_template('main.html', **templateData)
-
-
 
 @app.route("/logs")
 def logs():
@@ -172,74 +169,33 @@ def logs():
 
 @app.route("/soil")
 def soil():
-    # templateData = template(title = "Soil")
     temp = getSoilStatus()
-    print(temp)
-    templateData = data_template(title = "Soil", data = temp)
-    return render_template('soil.html', **templateData)
+    templateData = table_template(title = "Soil", data = temp)
+    return render_template('tables/pump_table.html', **templateData)
 
-@app.route("/auto")
-def auto():
-    templateData = data_template(title = "Auto")
-    return render_template('auto.html', **templateData)
-
-@app.route("/auto/env/read")
-def get_env():
-    water.getEnvData(burn=True);
-    templateData = data_template(title = "env", text = "getting status")
-    return render_template('auto.html', **templateData)
+@app.route("/environment")
+def environment():
+    templateData = data_template(title = "Environment", status=checkRunning(program=1))
+    return render_template('tables/sensor_table.html', **templateData)
 
 @app.route("/pump")
 def pump():
     templateData = data_template(title = "Pump", data = getPumpStatus())
     return render_template('pump.html', **templateData)
 
+@app.route("/processes")
+def processes():
+    templateData = template(text = "ya ya getting processes")
+    return render_template('processes.html', **templateData)
 
-@app.route("/last_watered")
-def check_last_watered():
-    templateData = data_template(title = "last water", data = water.get_last_watered())
-    return render_template('main.html', **templateData)
 
-@app.route("/sensor1")
-def action6():
-    status = water.get_soil_status(0)
-    message = ('plant 1 sensor '+ status) 
-
-    templateData = template(text = message)
-    return render_template('main.html', **templateData)
-
-@app.route("/sensor2")
-def action7():
-    status = water.get_soil_status(1)
-    message = ('plant 2 sensor '+ status) 
-
-    templateData = template(text = message)
-    return render_template('main.html', **templateData)
-
-@app.route("/sensor3")
-def action5():
-    status = water.get_soil_status(2)  
-    message = ('plant 3 sensor '+ status) 
-
-    templateData = template(text = message)
-    return render_template('main.html', **templateData)
-
-# @app.route("/water1")
-# def action2():
-#     water.pump_on(0)
-#     templateData = template(text = "Watered Once")
-#     return render_template('main.html', **templateData)
-
+## ACTIVE ROUTES ## 
 @app.route("/errors/clear")
 def clear():
     water.clear_errors()
     templateData = template(text = "errors cleared")
     return render_template('main.html', **templateData)
 
-@app.route("/processes")
-def processes():
-    templateData = template(text = "ya ya getting processes")
-    return render_template('processes.html', **templateData)
 
 @app.route("/water1/<toggle>")
 def pump1(toggle):
@@ -287,7 +243,6 @@ def pum43(toggle):
     return render_template('pump.html', **templateData)
 
 
-
 @app.route("/auto/sensor/<pin>")
 def sensor_toggle(pin):
   
@@ -296,45 +251,30 @@ def sensor_toggle(pin):
     templateData = template(title = "Home", text = status)
     return render_template('main.html', **templateData)
 
+
+#### API ROUTE #####
+
+@app.route('/api/data/sensor')
+def data():
+    arr = db.get_all_rows(table="SENSOR_READINGS", limit="200000", order="time DESC")
+    # print([toDict(row) for row in arr] )
+    return {'data': [toDict(row) for row in arr] }
+
+
+@app.route('/api/data/pumps')
+def pump_data():
+    arr = db.get_all_rows(table="PUMPS", limit="200000", order="time DESC")
+    # print([toPumpDict(row) for row in arr] )
+    return {'data': [toPumpDict(row) for row in arr] }
+
+
+# THE ONLY ONE???
+
 # active_apps = [
 #     subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 0'),start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
 #     subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 1'),start_new_session=True, stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
 #     subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 2'),start_new_session=True, stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
 # ]
-
-@app.route("/auto/water/<toggle>")
-def auto_water(toggle): 
-    
-    # water_log = open('auto_water.txt', 'a')
-    # water_log.write('some text, as header of the file\n')
-    # water_log.flush()  # <-- here's something not to forget!
-
-
-    if toggle == "ON":
-        templateData = template(text = "Already Running")
-
-        if (active_apps[0] is None):
-            templateData = template(text = "attempting startup...")
-            # active_apps[0] = subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py'),start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-          
-            # with open('auto_water.txt', 'a') as f:
-            #     os.set_blocking(f.fileno(), False)
-            #     active_apps[0] = subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py'), stdin=subprocess.DEVNULL, stdout=f.fileno(), stderr=subprocess.STDOUT)
-      
-            # os.system("/home/admin/plants/.venv/bin/python3 auto_water.py& 0")
-            # print(active_apps[0].check_output('python'))
-            print("should be running...", active_apps[0] is not None)
-    elif active_apps[0] is None:
-        templateData = template(text = "Not Turned ON!")
-    else:
-        try:
-            templateData = template(text = "Auto Watering Off")
-            os.system("pkill -f 'auto_water.py'")
-            active_apps[0] = None
-        except:
-            templateData = template(text = "error running pkill on AutoWater.py!!!!")
-    
-    return render_template('main.html', **templateData)
 
 
 
@@ -410,42 +350,6 @@ def auto_water(toggle):
 
 #     return render_template('main.html', **templateData)
 
-@app.route("/about")
-def about():
-    templateData = template(title = "About")
-    return render_template('about.html', **templateData)
-
-
-@app.route("/auto/env/record/<toggle>")
-def record_env(toggle):
-    # env_log = open('auto_env.txt', 'a')
-    # env_log.write('some text, as header of the file\n')
-    # env_log.flush()  # <-- here's something not to forget!
-
-    if toggle == "ON":
-        templateData = template(text = "ENV RECORDER ON")
-        try:
-            if (active_apps[1] is not None):
-                templateData = template(text = "Already running env") 
-        except:
-            pass
-        if (active_apps[1] is None):
-            templateData = template(text = "attempting startup...")
-            active_apps[1] = subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_env.py'),start_new_session=True, stdin=env_log, stdout=env_log, stderr=env_log),
-            # os.set_blocking(env_log.stdout.fileno(), False)
-            
-            # os.system("/home/admin/plants/.venv/bin/python3 auto_water.py& 1")
-            # print(active_apps[1].check_output('python'))
-            print("should be running...", active_apps[1] is not None)
-    else:
-        try:
-            templateData = template(text = "ENV RECORDER Off")
-            os.system("pkill -f 'auto_env.py'")
-            active_apps[1] = None
-
-        except:
-            templateData = template(text = "Recorder Not Turned ON!")
-    return render_template('main.html', **templateData)
 
 
 

@@ -23,7 +23,6 @@ power_on_count = []
 md5_sense=None
 
 
-
 sensor = None;
 ccs = None;
 

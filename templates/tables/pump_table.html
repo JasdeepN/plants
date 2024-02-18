@@ -1,8 +1,7 @@
-{% extends "auto.html" %}
+{% extends "soil.html" %}
 
 
 {% block table %}
-{% if (data is defined) and data %}
 
 <table id="data" class="table table-striped">
     <thead>
@@ -10,28 +9,37 @@
         <th>Row ID</th>
         <th>Pump ID</th>
         <th>Date</th>
-        <th>Auto/Manual</th>
-
+        <th>Method</th>
     </tr>
     </thead>
-    <tbody>
+    <tbody>   
+    </tbody>
+</table>
 
-        {% for row in data %}
-            <tr>
-                <td>{{row[0]}}</td>
-                <td>{{row[1]}}</td>
-                <td>{{row[2]}}</td>
 
-                {% if row[3] == 0 %}
-                    <td>Manual</td>
-                {% else %}
-                    <td>Automatic</td>
-                {% endif %}
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    
-    {% endif %}
+{% endblock %}
 
+
+{% block scripts %}
+{{super()}}
+  <script>
+    $(document).ready(function () {
+      $('#data').DataTable({
+        bProcessing: true,
+        bServerSide: false,
+        sPaginationType: "full_numbers",
+        "pageLength": 10,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        bjQueryUI: true,
+        sAjaxSource: "/api/data/pumps",
+        columns: [
+            { data: 'Row ID' },
+            { data: 'Pump ID' },
+            { data: 'Date' },
+            { data: 'Method', render: function (data, type, row) {return data === 0 ? "Manual" : "Automatic";} },
+        ],
+        order: [[0, 'desc']]
+      });
+    });
+  </script>
 {% endblock %}

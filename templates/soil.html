@@ -8,5 +8,14 @@
     {% for item in data %}
         <h2> status {{loop.index}}: {{item}} </h2>
     {% endfor %}
+
+
+<div class="table-content">
+    {% block table %}
+
+    {% endblock %}
 </div>
+
+</div>
+
 {% endblock %}
