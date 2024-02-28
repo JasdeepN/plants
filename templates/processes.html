@@ -3,14 +3,12 @@
 {% block content %}
 {{ text }}
 
+<br><a href="/api/process/water/start"><button class="btn btn-primary">start water</button></a>
+
 
 {% endblock %}
 
 
 {% block scripts %}
 {{super()}}
-  <!-- <script type="text/javascript" charset="utf-8">
-    var socket = io();
-    socket.emit("my event", {data:"from about"})
-  </script> -->
 {% endblock %}

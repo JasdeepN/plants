@@ -5,17 +5,18 @@
 <h1> this page show current soil status</h1>
 
 <div class="content">
+    <span class="horizontal">
     {% for item in data %}
-        <h2> status {{loop.index}}: {{item}} </h2>
+        <span> <h2> Sensor {{loop.index}} - {{item}} </h2> </span>
     {% endfor %}
-
-
+    </span>
+</div>
 <div class="table-content">
     {% block table %}
 
     {% endblock %}
 </div>
 
-</div>
+
 
 {% endblock %}

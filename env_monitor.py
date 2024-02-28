@@ -113,8 +113,9 @@ def poll():
 def snapshot(burn=False, attempt=0):
     global sensor
     global ccs
+    global currentEnvironmentVars
     attempt += 1;
-    if sensor is None: raise("BME680 COMMS ERROR")
+    if sensor is None: raise Exception("BME680 COMMS ERROR")
     snap = [];
     if attempt == 3:
         raise Exception('no sensor reading bme680')
@@ -149,9 +150,14 @@ def snapshot(burn=False, attempt=0):
 
     if len(snap) < 5:
         snapshot(False, attempt)
+
+    currentEnvironmentVars = snap
+    print('updated current', currentEnvironmentVars)
     return snap
 
-
+def getLastReading():
+    global currentEnvironmentVars
+    return currentEnvironmentVars
 
 
 def toggle_reset():
@@ -159,7 +165,6 @@ def toggle_reset():
     time.sleep(.2)
     GPIO.output(23, GPIO.HIGH)
     time.sleep(0.5)
-
 
 
 def init():

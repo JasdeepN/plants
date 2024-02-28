@@ -8,12 +8,14 @@ import db
 # from flask_socketio import SocketIO
 from flask_bootstrap import Bootstrap4
 # from flask_mqtt import Mqtt
+from env_monitor import getLastReading
+from subprocess import call
 import subprocess
-import shlex
+from configs import start_process, check_process, getAllADSRaw
+
 app = Flask(__name__)
 # mqtt = Mqtt(app)
 # socketio = SocketIO(app)
-
 
 # DECLARE AND INIT #
 
@@ -22,8 +24,8 @@ water.init()
 
 active_apps = [None, None]
 programs = [
-    "auto_water.py",
-    "auto_env.py"
+    "water",
+    "environmental_recorder",
 ]
 
 ######
@@ -43,7 +45,8 @@ def toDict(self):
         'Soil 2' : self[8],
         'Soil 3' : self[9],
         'Soil 4' : self[10],
-        'eCO2' : self[11]
+        'eCO2' : self[11],
+        'TVOC' : self[12]
     }
 
 def toPumpDict(self):
@@ -92,72 +95,86 @@ def table_template(title = "", data = [], text = "", table= None, status=None):
         }
     return templateData
 
+
+def home_template(soil, last_water, current_env, programs, active_sensors, host_data, title = "Home"):
+    now = datetime.datetime.now()
+    timeString = now.strftime("%c")
+    templateData = {
+        'time': timeString,
+        'title' : title,
+        'soil': soil,
+        'last_water': last_water,
+        'current_env': current_env,
+        'programs': programs,
+        'active_sensors': active_sensors,
+        'host_data': host_data
+        }
+    return templateData
+
 ## GET DATA ##
 def getSoilStatus():
     return water.get_soil_status()
 
 def getPumpStatus():
-    pump_arr = []
-    pump_arr.append("OFF" if water.getPinState(0) == 0 else "ON");
-    pump_arr.append("OFF" if water.getPinState(1) == 0 else "ON");
-    pump_arr.append("OFF" if water.getPinState(2) == 0 else "ON");
-    pump_arr.append("OFF" if water.getPinState(3) == 0 else "ON");
-    return pump_arr
+    retVal = []
+    status_arr = []
+    status_arr.append("OFF" if water.getPinState(0) == 0 else "ON");
+    status_arr.append("OFF" if water.getPinState(1) == 0 else "ON");
+    status_arr.append("OFF" if water.getPinState(2) == 0 else "ON");
+    status_arr.append("OFF" if water.getPinState(3) == 0 else "ON");
 
-def getRunning():
-    global active_apps
-    active_apps = []
-    for target in programs:
-        active_apps.append(verification(target))
-    return active_apps
-            
-    
-def verification(prog):
-    for pid in psutil.pids():
-        p = psutil.Process(pid)
-        if p.name() == "python" and len(p.cmdline()) > 1 and prog in p.cmdline()[1]:
-            return True
-    return False
+    rawData = getAllADSRaw();
+
+    retVal.append(status_arr)
+    retVal.append(rawData)
+    return retVal
+
+def getLastWatered():
+    return db.query(query='''select PUMPS.* from PUMPS ,
+           (select pump_id,max(time) as date
+                from PUMPS
+                group by pump_id) max_date
+             where PUMPS.pump_id=max_date.pump_id
+             and PUMPS.time=max_date.date  ORDER BY PUMPS.pump_id ASC ;''')
+    # print('last water', temp)
+
+def getEnvironmentStatus():
+    current = db.query(query='''SELECT * FROM SENSOR_READINGS ORDER BY id DESC LIMIT 1;''')
+    # current = snapshot()
+    return current
 
 
-def checkRunning(program=None):
+def getActiveSensor():
+    return water.sensor_state()
+
+def getHostStats():
+    # proc=call()
+    proc=subprocess.check_output(["./hwid.sh"]) 
+    return proc.decode().split('\n') 
+
+def getRunning(program=None):
     global programs
-    global active_apps
-    getRunning()
-    print('checking for', program)
+    ret=[]
+    for prog in programs:
+        ret.append(check_process(prog))
 
-    if program == None: 
-        out=[]    
-        for target in active_apps:
-            if target is None:
-                out.append(programs[target]+" Process Not Started.")
-            elif target is False:
-                out.append(programs[target] + " not found")
-            else:
-                out.append(programs[target] +'Running')
-        
-        return out
-    else:
-        retVal = programs[program] + " Not Found."
-        try:
-            if (active_apps[program] is not None):
-                retVal =  "Already running";
-        except:
-            pass
-        return retVal
+    return ret
 
 def getAllData():
     _data = []
     _data.append(getSoilStatus());
-    _data.append(getPumpStatus());
-    # _data.append(getEnvironmentalStatus());
+    _data.append(getLastWatered());
+    _data.append(getEnvironmentStatus());
+    _data.append(getRunning())
+    _data.append(getActiveSensor())
+    _data.append(getHostStats())
     return _data
 
 
 ## ROUTES ##
 @app.route("/")
 def home():
-    templateData = template(title = "Home")
+    templateData = home_template(title = "Home", *getAllData())
     return render_template('main.html', **templateData)
 
 @app.route("/logs")
@@ -175,12 +192,12 @@ def soil():
 
 @app.route("/environment")
 def environment():
-    templateData = data_template(title = "Environment", status=checkRunning(program=1))
+    templateData = data_template(title = "Environment", status=check_process("environmental_recorder"))
     return render_template('tables/sensor_table.html', **templateData)
 
 @app.route("/pump")
 def pump():
-    templateData = data_template(title = "Pump", data = getPumpStatus())
+    templateData = data_template(title = "Pump", data = getPumpStatus(), text=water.sensor_state())
     return render_template('pump.html', **templateData)
 
 @app.route("/processes")
@@ -243,13 +260,13 @@ def pum43(toggle):
     return render_template('pump.html', **templateData)
 
 
-@app.route("/auto/sensor/<pin>")
+@app.route("/water/sensor/<pin>")
 def sensor_toggle(pin):
   
     water.toggle_sensor(int(pin))
     status = water.sensor_state()
-    templateData = template(title = "Home", text = status)
-    return render_template('main.html', **templateData)
+    templateData = data_template(title = "Pump", text = status, data = getPumpStatus())
+    return render_template('pump.html', **templateData)
 
 
 #### API ROUTE #####
@@ -266,6 +283,14 @@ def pump_data():
     arr = db.get_all_rows(table="PUMPS", limit="200000", order="time DESC")
     # print([toPumpDict(row) for row in arr] )
     return {'data': [toPumpDict(row) for row in arr] }
+
+
+@app.route('/api/process/water/start')
+def start_water():
+    # print([toPumpDict(row) for row in arr] )
+    templateData = template(text = start_process('water'))
+    return render_template('processes.html', **templateData)
+    # return water.start_process();
 
 
 # THE ONLY ONE???

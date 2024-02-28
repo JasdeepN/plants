@@ -1,9 +1,14 @@
 import mysql.connector
 from mysql.connector import Error
 import atexit
+import sqlvalidator
 
 # filename to form database 
 # file = "/home/admin/plants/db/sensor.db"
+
+class SQL_QUERY(Exception):
+    pass
+
 
 def create_connection():
   """ create a database connection to the SQLite database
@@ -55,7 +60,7 @@ def drop_table(conn):
 def create_table(conn):
   conn.reconnect()
   #Creating table
-  table = ''' CREATE TABLE SENSOR_READINGS (
+  table = '''CREATE TABLE SENSOR_READINGS (
             id INT NOT NULL AUTO_INCREMENT,
             time DATETIME NOT NULL,
             temp DOUBLE NULL,
@@ -63,13 +68,13 @@ def create_table(conn):
             pressure DOUBLE NULL,
             gas_resistance DOUBLE NULL,
             aq_calculated DOUBLE NULL,
-            soil_1 ENUM('error', 'dry', 'watered', 'wet') DEFAULT 'error',
-            soil_2 ENUM('error', 'dry', 'watered', 'wet') DEFAULT 'error',
-            soil_3 ENUM('error', 'dry', 'watered', 'wet') DEFAULT 'error',
-            soil_4 ENUM('error', 'dry', 'watered', 'wet') DEFAULT 'error',
-            eCO2 INT NULL,
-            TVOC INT NULL,
-            PRIMARY KEY (id)
+            soil_1 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
+            soil_2 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
+            soil_3 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
+            soil_4 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
+            eCO2 DOUBLE NULL,
+            TVOC DOUBLE NULL,
+            PRIMARY KEY (id)  
           ); ''' 
   cursor.execute(table)
 
@@ -94,13 +99,13 @@ def get_all_rows(table=None, limit="" , order=""):
 
   conn.reconnect()
   if table is None: return;
-  if order is not "":
+  if order != "":
    _order = " ORDER BY " + order
 
-  if limit is not "":
+  if limit != "":
     _limit = " LIMIT " + limit  
   print("read db")
-  query = "SELECT * FROM "+table+ _order + _limit + ";"
+  query = "SELECT * FROM "+ table + _order + _limit + ";"
   cursor.execute(query)
   result = cursor.fetchall()
   return result
@@ -115,6 +120,42 @@ def insert_data_from_pump(time, pump_data=[]):
 
   # insert_data(sensor_data[0], sensor_data[1], sensor_data[2], sensor_data[3], sensor_data[4], sensor_data[5], sensor_data[6], sensor_data[7], sensor_data[8]);
 
+def queryBuidler(query=None, table=None, selector="*", where=None, limit=None, order=None):
+  if query is None:
+    print('bulding query from ', table, selector, limit, order)
+    if table is None: raise TypeError("table cannot be empty in query")
+    query = "SELECT " + selector + " FROM " + table
+
+    if where != None:
+      query += " WHERE " + str(where) 
+
+    if order != None:
+      query += " ORDER BY " + str(order)
+
+    if limit != None:
+      query += " LIMIT " + str(limit) 
+
+    query += ";"
+  
+  formatted_sql = sqlvalidator.format_sql(query)
+  test = sqlvalidator.parse(formatted_sql)
+  if not test.is_valid():
+    print('attempt to use ', query)
+    raise SQL_QUERY(test.errors)
+ 
+  return formatted_sql;
+
+def query(query=None, table=None, selector="*", limit=None, order=None):
+  global conn
+  if query is None:
+    _query = queryBuidler(table, selector, limit, order)
+  else:
+    _query = queryBuidler(query)
+  conn.reconnect()
+  cursor.execute(_query)
+  result = cursor.fetchall()
+
+  return result
   
 def insert_data(temp, humidity, pressure, gas_resistance=None, aq_calculated=None, eCO2=0, tvoc=0, sensor1=None, sensor2=None, sensor3=None, sensor4=None, time=None):
   conn.reconnect()

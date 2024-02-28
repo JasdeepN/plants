@@ -3,20 +3,23 @@
 
 {% block content %}
 <h1> Pump Status' </h1>
+
 <div class="content pump">
     <span class="icons horizontal">
-    {% for item in data %}
-    {% if item == "ON" %}
-        <div class="status-bar">
-            <h2 class="title"> Pump {{loop.index}}</h2>
+    {% for item in data[0] %}
+    <div class="status-bar">
+        <h2 class="title"> Pump {{loop.index}} </h2>
+        {% if item[0] == "ON" %}
            <div class="icon">  <img src="{{ url_for('static', filename='imgs/on.png') }}" /> </div>
-        </div>
-    {% else %}
-        <div class="status-bar">
-            <h2 class="title"> Pump {{loop.index}} </h2>
+        {% else %}
             <div class="icon"> <img src="{{ url_for('static', filename='imgs/off.png') }}" /></div>
+        {% endif %}
+
+            <div class="">RAW VAL: {{ data[1][loop.index-1] }}</div>
+            <div class="">SENSOR STATUS: {{ text[loop.index-1] }}</div>
+
+
         </div>
-    {% endif %}
 
     {% endfor %}
     </div>
@@ -27,37 +30,39 @@
            
             <div class="pump-controller"> 
                 <h2 class="title"> Pump 1 </h2>
-                <a href="/water1"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water/sensor/0"><button class="btn btn-primary">Toggle Sensor 1</button></a>
                 <a href="/water1/ON"><button class="btn btn-primary">Turn ON</button></a>
                 <a href="/water1/OFF"><button class="btn btn-primary">Turn OFF</button></a>
             </div>
            
             <div class="pump-controller"> 
                 <h2 class="title"> Pump 2 </h2>
-                <a href="/water2"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water/sensor/1"><button class="btn btn-primary">Toggle Sensor 2</button></a>
                 <a href="/water2/ON"><button class="btn btn-primary">Turn ON</button></a>
                 <a href="/water2/OFF"><button class="btn btn-primary">Turn OFF</button></a>
             </div>
            
             <div class="pump-controller"> 
                 <h2 class="title"> Pump 3 </h2>
-                <a href="/water3"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water/sensor/2"><button class="btn btn-primary">Toggle Sensor 3</button></a>
                 <a href="/water3/ON"><button class="btn btn-primary">Turn ON</button></a>
                 <a href="/water3/OFF"><button class="btn btn-primary">Turn OFF</button></a>
             </div>
            
             <div class="pump-controller disabled"> 
                 <h2 class="title"> Pump 4 </h2>
-                <a href="/water4"><button class="btn btn-primary">Water Once</button></a>
+                <a href="/water/sensor/3"><button class="btn btn-primary">Toggle Sensor 4</button></a>
                 <a href="/water4/ON"><button class="btn btn-primary">Turn ON</button></a>
                 <a href="/water4/OFF"><button class="btn btn-primary">Turn OFF</button></a>
             </div>
 
         </span>
     </div>
+
+
+
 {% endblock %}
 
 {% block scripts %} 
     {{super()}}
-    
 {% endblock %}

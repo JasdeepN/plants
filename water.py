@@ -99,12 +99,12 @@ def get_soil_status(pin = None):
     else:
         # GPIO.setup(water_sensor_pin[pin], GPIO.IN)
         # return getSensorState(water_sensor_pin[pin])
-        print( ADS.readADC(pin))
+        # print( ADS.readADC(pin))
         return getSensorState(pin)
    
 
 
-def auto_water(pump_time = 5, sense_time=10):   
+def auto_water(pump_time = 20, sense_time=60):   
     # global file_change
     global active_sensors
     global power_on_count
@@ -204,8 +204,6 @@ def pump_off(pin):
     GPIO.output(pump_pin[pin], GPIO.HIGH)
 
 
-
-
 def getLogs():
     result_arr = []
 
@@ -226,7 +224,6 @@ def getLogs():
 
   
     return result_arr
-
 
 
 if __name__ == "__main__":
