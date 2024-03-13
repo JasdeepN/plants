@@ -92,6 +92,10 @@ ENV/
 # Rope project settings
 .ropeproject
 
+**/*/logs
+**/*/*.db
+**/*/pwfile
+
 db/sensor.db
 examples/
 /logs/*
