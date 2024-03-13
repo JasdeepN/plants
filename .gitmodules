@@ -1,0 +1,6 @@
+[submodule "esp32-remote"]
+	path = esp32-remote
+	url = https://github.com/JasdeepN/esp32-remote.git
+[submodule "mqtt-setup"]
+	path = mqtt-setup
+	url = https://github.com/sukesh-ak/setup-mosquitto-with-docker.git
