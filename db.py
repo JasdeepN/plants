@@ -3,127 +3,85 @@ from mysql.connector import Error
 import atexit
 import sqlvalidator
 
-# filename to form database 
-# file = "/home/admin/plants/db/sensor.db"
+import os
+from dotenv import load_dotenv
+import logging 
+from common import *
 
-class SQL_QUERY(Exception):
-    pass
+logger = logging.getLogger(__name__)
+load_dotenv()
 
+DEBUG = os.getenv('DEBUG')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+DB_HOST = os.getenv('DB_HOST')
+
+
+# class SQL_QUERY(Exception):
+#     pass
 
 def create_connection():
+  global conn
+  global cursor
   """ create a database connection to the SQLite database
       specified by the db_file
   :param db_file: database file
   :return: Connection object or None
   """
-  conn = None
+  logger.info("Create DB connection")
   try:
-    conn = mysql.connector.connect(host='localhost',
-                                         database='sensor',
-                                         user='env-monitor',
-                                         password='password')
+    conn = mysql.connector.connect( host=DB_HOST,
+                                    database=DB_NAME,
+                                    user=DB_USER,
+                                    password=DB_PASSWORD )
+
     if conn.is_connected():
-        db_Info = conn.get_server_info()
-        print("Connected to MySQL Server version ", db_Info)
+        db_info = conn.get_server_info()
+        logger.info("Connected to MySQL Server version %s", db_info)
         cursor = conn.cursor()
         cursor.execute("select database();")
         record = cursor.fetchone()
-        print("You're connected to database: ", record)
+        logger.info("You're connected to database: %s", record)
 
   except Error as e:
-    print("Error while connecting to MySQL", e)
-
-
+    logger.error(e)
+    raise LoggedException(logger, "Error while connecting to MySQL")
   return conn
 
-
-def select_all_tables(conn):
-    """
-    Query all rows in the tasks table
-    :param conn: the Connection object
-    :return:
-    """
-    conn.reconnect()
-    cursor.execute("SELECT * FROM sqlite_schema WHERE type='table'")
-
-    rows = cursor.fetchall()
-
-    for row in rows:
-        print(row, "\n")
- 
-def drop_table(conn):
-  cursor.execute("SET FOREIGN_KEY_CHECKS=0")
-  cursor.execute("DROP TABLE IF EXISTS SENSOR_READINGS")
-  cursor.execute("DROP TABLE IF EXISTS PUMPS")
-
-
-def create_table(conn):
-  conn.reconnect()
-  #Creating table
-  table = '''CREATE TABLE SENSOR_READINGS (
-            id INT NOT NULL AUTO_INCREMENT,
-            time DATETIME NOT NULL,
-            temp DOUBLE NULL,
-            humidity DOUBLE NULL,
-            pressure DOUBLE NULL,
-            gas_resistance DOUBLE NULL,
-            aq_calculated DOUBLE NULL,
-            soil_1 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
-            soil_2 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
-            soil_3 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
-            soil_4 ENUM('disconnected', 'error 1', 'error 2', 'dry', 'watered', 'wet') DEFAULT 'disconnected',
-            eCO2 DOUBLE NULL,
-            TVOC DOUBLE NULL,
-            PRIMARY KEY (id)  
-          ); ''' 
-  cursor.execute(table)
-
- 
-
-  table_pump = ''' CREATE TABLE PUMPS (
-            id INTEGER NOT NULL AUTO_INCREMENT,
-            pump_id INT NOT NULL, 
-            time DATETIME NOT NULL,
-            method BOOLEAN NOT NULL,
-            PRIMARY KEY (id)
-            ); ''' 
-
-  cursor.execute(table_pump)
-
-  print("Tables are Ready")
-
-
 def get_all_rows(table=None, limit="" , order=""):
+  global conn
+  global cursor
   _order = ""
   _limit = ""
 
+  if table is None: raise LoggedException("table cannot be empty in query")
+  
   conn.reconnect()
-  if table is None: return;
   if order != "":
    _order = " ORDER BY " + order
 
   if limit != "":
     _limit = " LIMIT " + limit  
-  print("read db")
+  
+  logger.info("read db")
   query = "SELECT * FROM "+ table + _order + _limit + ";"
   cursor.execute(query)
   result = cursor.fetchall()
   return result
 
 def insert_data_from_pump(time, pump_data=[]):
+  global conn
+  global cursor
   conn.reconnect()
   # conn = create_connection();
- 
   cursor.execute( "INSERT INTO PUMPS(time, pump_id, method) VALUES (%s, %s, %s)", (time, pump_data[0], pump_data[1]))
-
   conn.commit();
-
-  # insert_data(sensor_data[0], sensor_data[1], sensor_data[2], sensor_data[3], sensor_data[4], sensor_data[5], sensor_data[6], sensor_data[7], sensor_data[8]);
 
 def queryBuidler(query=None, table=None, selector="*", where=None, limit=None, order=None):
   if query is None:
-    print('bulding query from ', table, selector, limit, order)
-    if table is None: raise TypeError("table cannot be empty in query")
+    logger.info('bulding query from ', table, selector, limit, order)
+    if table is None: raise LoggedException("table cannot be empty in query")
     query = "SELECT " + selector + " FROM " + table
 
     if where != None:
@@ -140,13 +98,14 @@ def queryBuidler(query=None, table=None, selector="*", where=None, limit=None, o
   formatted_sql = sqlvalidator.format_sql(query)
   test = sqlvalidator.parse(formatted_sql)
   if not test.is_valid():
-    print('attempt to use ', query)
-    raise SQL_QUERY(test.errors)
+    logger.error('invalid SQL was generated, did not pass test.', query)
+    raise LoggedException(test.errors)
  
   return formatted_sql;
 
 def query(query=None, table=None, selector="*", limit=None, order=None):
   global conn
+  global cursor
   if query is None:
     _query = queryBuidler(table, selector, limit, order)
   else:
@@ -158,8 +117,10 @@ def query(query=None, table=None, selector="*", limit=None, order=None):
   return result
   
 def insert_data(temp, humidity, pressure, gas_resistance=None, aq_calculated=None, eCO2=0, tvoc=0, sensor1=None, sensor2=None, sensor3=None, sensor4=None, time=None):
+  global conn
+  global cursor
   conn.reconnect()
-  print('insert @ ', time)
+  logger.info('insert @ ', time)
   if time is None: return;
   cursor.execute( "INSERT INTO SENSOR_READINGS(time, temp, humidity, pressure, gas_resistance, aq_calculated, soil_1, soil_2, soil_3, soil_4, eCO2, TVOC) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (time, temp,  pressure, humidity, gas_resistance, aq_calculated, sensor1, sensor2, sensor3, sensor4, eCO2, tvoc))
   conn.commit();
@@ -179,39 +140,31 @@ def getRows(rows, table, where=None, modifier=None):
 
   modifier = timespace[modifier]
 
-
-  print(">>>>>SELECT * FROM " + table + where + modifier)
+  logger.info("SELECT * FROM " + table + where + modifier)
   
   query = "SELECT * FROM " + table + where + modifier
   cursor.execute(query)
-
 
   result = cursor.fetchall()
 
   return result
 
 def cleanup():
-  cursor.close()
-  conn.close()
-  print('closed connections')
-
-
-def run():   
-  conn = create_connection()
-  # cursor object
-  drop_table(conn)
-  create_table(conn)
-  # select_all_tables(conn)
-  # data = get_all_rows(conn)
-  # print(data)
-  # Close the connection
-  conn.close()
-
+  global conn
+  global cursor
+  try:
+    cursor.close()
+    conn.close()
+    logger.info('Closed DB connections')
+  except:
+    pass
+  
 def exit_handler():
     cleanup();
 
-conn = create_connection();
-cursor = conn.cursor(buffered=True);
-atexit.register(exit_handler)
 
-# run();
+# conn = create_connection();
+
+
+atexit.register(exit_handler);
+
