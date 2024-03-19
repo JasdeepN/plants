@@ -1,24 +1,18 @@
 from flask import Flask, render_template, redirect, url_for
-import psutil
-import datetime
+
 import water
-import os
-import json
-import db 
-# from flask_socketio import SocketIO
+import datetime
 from flask_bootstrap import Bootstrap4
-# from flask_mqtt import Mqtt
-from env_monitor import getLastReading
-from subprocess import call
 import subprocess
-from configs import start_process, check_process, getAllADSRaw
+from common import *
+import logging
+import db
+logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-# mqtt = Mqtt(app)
-# socketio = SocketIO(app)
-
-# DECLARE AND INIT #
-
+try:
+    app = Flask(__name__)
+except Exception as ex:
+    raise LoggedException(logger, "Error in Flask process.", ex)
 bootstrap = Bootstrap4(app) 
 water.init()
 
@@ -28,11 +22,8 @@ programs = [
     "environmental_recorder",
 ]
 
-######
-
 ### LOCAL FUNCTION DEFINITIONS ### 
 def toDict(self):
-    # print ('got', len(self))
     return {
         'Row ID' : self[0],
         'Date' : self[1],
@@ -50,14 +41,12 @@ def toDict(self):
     }
 
 def toPumpDict(self):
-    # print ('pump got', len(self))
     return {
         'Row ID' : self[0],
         'Pump ID' : self[1],
         'Date' : self[2],
         'Method' : self[3],
     }
-
 
 ## TEMPLATES ##
 def template(title = "", text = ""):
@@ -82,7 +71,7 @@ def data_template(title = "", data = [], text = "", status=None):
         }
     return templateData
 
-def table_template(title = "", data = [], text = "", table= None, status=None):
+def table_template(title = "", data = [], text = "", table=None, status=None):
     now = datetime.datetime.now()
     timeString = now.strftime("%H:%M:%S")
     templateData = {
@@ -94,7 +83,6 @@ def table_template(title = "", data = [], text = "", table= None, status=None):
         'table': table,
         }
     return templateData
-
 
 def home_template(soil, last_water, current_env, programs, active_sensors, host_data, title = "Home"):
     now = datetime.datetime.now()
@@ -118,12 +106,12 @@ def getSoilStatus():
 def getPumpStatus():
     retVal = []
     status_arr = []
-    status_arr.append("OFF" if water.getPinState(0) == 0 else "ON");
-    status_arr.append("OFF" if water.getPinState(1) == 0 else "ON");
-    status_arr.append("OFF" if water.getPinState(2) == 0 else "ON");
-    status_arr.append("OFF" if water.getPinState(3) == 0 else "ON");
+    status_arr.append("OFF" if water.getPinState(0) == 0 else "ON")
+    status_arr.append("OFF" if water.getPinState(1) == 0 else "ON")
+    status_arr.append("OFF" if water.getPinState(2) == 0 else "ON")
+    status_arr.append("OFF" if water.getPinState(3) == 0 else "ON")
 
-    rawData = getAllADSRaw();
+    rawData = getAllADSRaw()
 
     retVal.append(status_arr)
     retVal.append(rawData)
@@ -136,19 +124,16 @@ def getLastWatered():
                 group by pump_id) max_date
              where PUMPS.pump_id=max_date.pump_id
              and PUMPS.time=max_date.date  ORDER BY PUMPS.pump_id ASC ;''')
-    # print('last water', temp)
 
 def getEnvironmentStatus():
     current = db.query(query='''SELECT * FROM SENSOR_READINGS ORDER BY id DESC LIMIT 1;''')
-    # current = snapshot()
     return current
-
 
 def getActiveSensor():
     return water.sensor_state()
 
 def getHostStats():
-    # proc=call()
+    # TODO: Add temperature of Pi, esp32 should be able to also report core temp
     proc=subprocess.check_output(["./hwid.sh"]) 
     return proc.decode().split('\n') 
 
@@ -162,14 +147,13 @@ def getRunning(program=None):
 
 def getAllData():
     _data = []
-    _data.append(getSoilStatus());
-    _data.append(getLastWatered());
-    _data.append(getEnvironmentStatus());
+    _data.append(getSoilStatus())
+    _data.append(getLastWatered())
+    _data.append(getEnvironmentStatus())
     _data.append(getRunning())
     _data.append(getActiveSensor())
     _data.append(getHostStats())
     return _data
-
 
 ## ROUTES ##
 @app.route("/")
@@ -179,9 +163,9 @@ def home():
 
 @app.route("/logs")
 def logs():
-    data = water.getLogs();
+    data = water.getLogs()
     print('logs =', logs)
-    templateData = data_template(title = "Logs", data = data);
+    templateData = data_template(title = "Logs", data = data)
     return render_template('logs.html', **templateData)
 
 @app.route("/soil")
@@ -205,7 +189,6 @@ def processes():
     templateData = template(text = "ya ya getting processes")
     return render_template('processes.html', **templateData)
 
-
 ## ACTIVE ROUTES ## 
 @app.route("/errors/clear")
 def clear():
@@ -213,231 +196,79 @@ def clear():
     templateData = template(text = "errors cleared")
     return render_template('main.html', **templateData)
 
-
-@app.route("/water1/<toggle>")
-def pump1(toggle):
-    running = False
+@app.route("/water/<pin>/<toggle>")
+def pump_toggle(toggle, pin):
     if toggle == "ON":
-        water.pump_stay_on(0)
+        water.pump_stay_on(int(pin))
     else:
-        water.pump_off(0)
+        water.pump_off(int(pin))
 
     templateData = data_template(title = "Pump", data = getPumpStatus())
     return render_template('pump.html', **templateData)
 
-@app.route("/water2/<toggle>")
-def pump2(toggle):
-    running = False
+# @app.route("/water1/<toggle>")
+# def pump1(toggle):
+#     if toggle == "ON":
+#         water.pump_stay_on(0)
+#     else:
+#         water.pump_off(0)
 
-    if toggle == "ON":
-        water.pump_stay_on(1)
-    else:
-        water.pump_off(1)
+#     templateData = data_template(title = "Pump", data = getPumpStatus())
+#     return render_template('pump.html', **templateData)
 
-    templateData = data_template(title = "Pump", data = getPumpStatus())
-    return render_template('pump.html', **templateData)
+# @app.route("/water2/<toggle>")
+# def pump2(toggle):
+#     if toggle == "ON":
+#         water.pump_stay_on(1)
+#     else:
+#         water.pump_off(1)
 
-@app.route("/water3/<toggle>")
-def pump3(toggle):
-    running = False
-    if toggle == "ON":
-        water.pump_stay_on(2)
-    else:
-        water.pump_off(2)
+#     templateData = data_template(title = "Pump", data = getPumpStatus())
+#     return render_template('pump.html', **templateData)
 
-    templateData = data_template(title = "Pump", data = getPumpStatus())
-    return render_template('pump.html', **templateData)
+# @app.route("/water3/<toggle>")
+# def pump3(toggle):
+#     if toggle == "ON":
+#         water.pump_stay_on(2)
+#     else:
+#         water.pump_off(2)
 
-@app.route("/water4/<toggle>")
-def pum43(toggle):
-    running = False
-    if toggle == "ON":
-        water.pump_stay_on(3)
-    else:
-        water.pump_off(3)
+#     templateData = data_template(title = "Pump", data = getPumpStatus())
+#     return render_template('pump.html', **templateData)
 
-    templateData = data_template(title = "Pump", data = getPumpStatus())
-    return render_template('pump.html', **templateData)
+# @app.route("/water4/<toggle>")
+# def pum43(toggle):
+#     if toggle == "ON":
+#         water.pump_stay_on(3)
+#     else:
+#         water.pump_off(3)
+
+#     templateData = data_template(title = "Pump", data = getPumpStatus())
+#     return render_template('pump.html', **templateData)
 
 
 @app.route("/water/sensor/<pin>")
 def sensor_toggle(pin):
-  
     water.toggle_sensor(int(pin))
     status = water.sensor_state()
     templateData = data_template(title = "Pump", text = status, data = getPumpStatus())
     return render_template('pump.html', **templateData)
 
-
 #### API ROUTE #####
-
 @app.route('/api/data/sensor')
 def data():
     arr = db.get_all_rows(table="SENSOR_READINGS", limit="200000", order="time DESC")
-    # print([toDict(row) for row in arr] )
     return {'data': [toDict(row) for row in arr] }
-
 
 @app.route('/api/data/pumps')
 def pump_data():
     arr = db.get_all_rows(table="PUMPS", limit="200000", order="time DESC")
-    # print([toPumpDict(row) for row in arr] )
     return {'data': [toPumpDict(row) for row in arr] }
-
 
 @app.route('/api/process/water/start')
 def start_water():
-    # print([toPumpDict(row) for row in arr] )
     templateData = template(text = start_process('water'))
     return render_template('processes.html', **templateData)
-    # return water.start_process();
-
-
-# THE ONLY ONE???
-
-# active_apps = [
-#     subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 0'),start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-#     subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 1'),start_new_session=True, stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-#     subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 2'),start_new_session=True, stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-# ]
-
-
-
-# @app.route("/auto/water2/<toggle>")
-# def auto_water2(toggle):
-#     if toggle == "ON":
-#         templateData = template(text = "Auto Watering 2 On")
-#         try:
-#             if (active_apps[1] is not None):
-#                 templateData = template(text = "Already running") 
-#         except:
-#             pass
-#         if (active_apps[1] is None):
-#             templateData = template(text = "attempting startup...")
-#             active_apps[1] = subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 1'),start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-#             # os.system("/home/admin/plants/.venv/bin/python3 auto_water.py& 1")
-#             # print(active_apps[1].check_output('python'))
-#             print("should be running...", active_apps[1] is not None)
-#     else:
-#         try:
-#             templateData = template(text = "Auto Watering 2 Off")
-#             os.system("pkill -f 'auto_water.py 1'")
-#             active_apps[1] = None
-
-#         except:
-#             templateData = template(text = "Not Turned ON!")
-#     return render_template('main.html', **templateData)
-
-# @app.route("/auto/water3/<toggle>")
-# def auto_water3(toggle):
-#     if toggle == "ON":
-#         templateData = template(text = "Auto Watering 3 On")
-#         try:
-#             if (active_apps[2] is not None):
-#                 templateData = template(text = "Already running") 
-#         except:
-#             pass
-#         if (active_apps[2] is None):
-#             templateData = template(text = "attempting startup...")
-#             active_apps[2] = subprocess.Popen(shlex.split('/home/admin/plants/.venv/bin/python3 auto_water.py 2'),start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-#             # os.system("/home/admin/plants/.venv/bin/python3 auto_water.py& 2")
-#             # print(active_apps[2].check_output('python'))
-#             print("should be running...", active_apps[2] is not None)
-#     else:
-#         try:
-#             templateData = template(text = "Auto Watering 3 Off")
-#             os.system("pkill -f 'auto_water.py 2'")
-#             active_apps[2] = None
-
-#         except:
-#             templateData = template(text = "Not Turned ON!")
-#     return render_template('main.html', **templateData)
-
-
-
-# @app.route("/auto/water4/<toggle>")
-# def auto_water4(toggle):
-#     running = False
-#     if toggle == "ON":
-#         templateData = template(text = "Auto Watering 4 On")
-#         for process in psutil.process_iter():
-#             try:
-#                 if process.cmdline()[1] == 'auto_water3.py':
-#                     templateData = template(text = "Already running")
-#                     running = True
-#             except:
-#                 pass
-#         if not running:
-#             os.system("/home/admin/plants/.venv/bin/python4 auto_water.py& 4")
-#     else:
-#         templateData = template(text = "Auto Watering 4 Off")
-#         os.system("pkill -f auto_water3.py")
-
-#     return render_template('main.html', **templateData)
-
-
-
-
-
-# @socketio.on('publish')
-# def handle_publish(json_str):
-#     data = json.loads(json_str)
-#     mqtt.publish(data['topic'], data['message'])
-
-
-# @socketio.on('subscribe')
-# def handle_subscribe(json_str):
-#     data = json.loads(json_str)
-#     mqtt.subscribe(data['topic'])
-
-
-# @socketio.on('unsubscribe_all')
-# def handle_unsubscribe_all():
-#     mqtt.unsubscribe_all()
-
-
-# @mqtt.on_message()
-# def handle_mqtt_message(client, userdata, message):
-#     data = dict(
-#         topic=message.topic,
-#         payload=message.payload.decode()
-#     )
-#     socketio.emit('mqtt_message', data=data)
-
-
-# @mqtt.on_log()
-# def handle_logging(client, userdata, level, buf):
-#     print(level, buf)
-
-
-
-# @socketio.on('my event')
-# def handle_my_custom_event(json):
-#     print('received json: ' + str(json))
-
-# @socketio.on('run')
-# def handle_my_run(**args):
-#     for arg  in args:
-#         print("need to do", arg)
-
-# @socketio.on("/auto/env/burn_in")
-# def burn():
-#     socketio.emit('run', "burn")
-
-#     # water.runBurnIn();
-#     templateData = data_template(title = "BURN", text = "running burn in")
-#     return render_template('auto.html', **templateData)
-
-    
-# @socketio.on('fe data')
-# def handle_my_custom_event(json):
-#     print('FE EVENT: ' + str(json))
-    
-
-
-
-# if __name__ == '__main__':
-#     socketio.run(app, host='0.0.0.0', port=80, use_reloader=False, debug=True)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=80, debug=True)
